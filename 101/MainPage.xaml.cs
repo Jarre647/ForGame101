@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using Windows.Media.SpeechSynthesis;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 
@@ -6,6 +9,76 @@ using Windows.UI.Xaml.Controls;
 
 namespace _101
 {
+    delegate void TextToPronounce(string name);
+
+    enum Instance
+    {
+        CloseToThLimit,
+        ExceededLimit,
+        Reset,
+        HalfReset
+    };
+
+    class Pronounce
+    {
+        public async void PronounceText(string text)
+        {
+            MediaElement mediaElement = new MediaElement();
+            var synth = new Windows.Media.SpeechSynthesis.SpeechSynthesizer();
+            using (SpeechSynthesizer synthesizer = new SpeechSynthesizer())
+            {
+                VoiceInformation voiceInfo =
+                    (
+                        from voice in SpeechSynthesizer.AllVoices
+                        where voice.Gender == VoiceGender.Female && voice.Language == "ru-RU"
+                        select voice
+                    ).FirstOrDefault() ?? SpeechSynthesizer.DefaultVoice;
+
+                synthesizer.Voice = voiceInfo;
+                SpeechSynthesisStream stream = await synthesizer.SynthesizeTextToStreamAsync(text);
+                mediaElement.SetSource(stream, stream.ContentType);
+                mediaElement.Play();
+            }
+        }
+    };
+
+    class PerformPronunciation
+    {
+        private Dictionary<Instance, TextToPronounce> _dictionaryForPreparingToPronounce = new Dictionary<Instance, TextToPronounce>
+        {
+            { Instance.CloseToThLimit, a => Chitalka.Chit("Внимание, товарищь" + a + " скоро проиграет")},
+            { Instance.ExceededLimit, a => Chitalka.Chit("Внимание, товарищь" + a + " проиграл" )  },
+            { Instance.Reset, a => Chitalka.Chit(a + "Вам повезло, Вы пока не проигали" )},
+            { Instance.HalfReset, a => Chitalka.Chit(a + "Вам повезло, Вы пока не проигали" )}
+        };
+
+        public void Pronounce (Instance op, string name)
+        {
+            _dictionaryForPreparingToPronounce[op](name);
+        }
+    };
+    public static class Chitalka
+    {
+        public async static void Chit(string a)
+        {
+            MediaElement mediaElement = new MediaElement();
+            var synth = new Windows.Media.SpeechSynthesis.SpeechSynthesizer();
+            using (SpeechSynthesizer synthesizer = new SpeechSynthesizer())
+            {
+                VoiceInformation voiceInfo =
+                    (
+                        from voice in SpeechSynthesizer.AllVoices
+                        where voice.Gender == VoiceGender.Female && voice.Language == "ru-RU"
+                        select voice
+                    ).FirstOrDefault() ?? SpeechSynthesizer.DefaultVoice;
+
+                synthesizer.Voice = voiceInfo;
+                SpeechSynthesisStream stream = await synthesizer.SynthesizeTextToStreamAsync(a);
+                mediaElement.SetSource(stream, stream.ContentType);
+                mediaElement.Play();
+            }
+        }
+    };
     /// <summary>
     /// An empty page that can be used on its own or navigated to within a Frame.
     /// </summary>
@@ -26,58 +99,7 @@ namespace _101
         {
             this.InitializeComponent();
         }
-        public class Chitalka
-        {
-            public virtual async void Chit(string a)
-            {
-
-                MediaElement mediaElement = new MediaElement();
-                var synth = new Windows.Media.SpeechSynthesis.SpeechSynthesizer();
-                Windows.Media.SpeechSynthesis.SpeechSynthesisStream stream = await synth.SynthesizeTextToStreamAsync(a);
-                mediaElement.SetSource(stream, stream.ContentType);
-                mediaElement.Play();
-            }
-        }
-        public class Bolshe202 : Chitalka
-        {
-            public override void Chit(string a)
-            {
-                a = "Внимание, товарищь" + a + " проиграл";
-                base.Chit(a);
-            }
-        }
-        public class Bolshe180 : Chitalka
-        {
-            public override void Chit(string a)
-            {
-                a = "Внимание, товарищь" + a + " скоро проиграет";
-                base.Chit(a);
-            }
-        }
-        public class Sbras : Chitalka
-        {
-            public override void Chit(string a)
-            {
-                a = a + "Вам повезло, Вы пока не проигали";
-                base.Chit(a);
-            }
-
-        }
-        class Neskolko180 : Chitalka
-        {
-
-            public void Chit1(params string[] args)
-            {
-                //int j = args.Length;
-                string a = args[0];
-                for (int i = 1; i < args.Length; i++)
-                {
-                    a = a + " и " + args[i];
-                }
-                a = a + "скоро проиграют";
-                base.Chit(a);
-            }
-        }
+       
         public class Provnesk180
         {
             public int check(int a, int b, int c, int d)
@@ -110,31 +132,26 @@ namespace _101
         {
             public int check(string name, int b)
             {
-                Sbras sbras = new Sbras();
-                Bolshe202 bolshe202 = new Bolshe202();
-                Bolshe180 bolshe180 = new Bolshe180();
+                var performPronunciation = new PerformPronunciation();
                 if (b == 200)
                 {
                     b = 100;
-                    sbras.Chit(name);
-                 
+                    performPronunciation.Pronounce(Instance.HalfReset, name);
                 }
                 else
                 {
                     if (b == 201 || b == 202)
                     {
                         b = 0;
-                        sbras.Chit(name);
-                    
+                        performPronunciation.Pronounce(Instance.Reset, name);
                     }
                     else
                     {
                         if (b > 202)
                         {
-                            bolshe202.Chit(name);
-                           
+                            performPronunciation.Pronounce(Instance.ExceededLimit, name);
                         }
-                     
+
                     }
                 }
                 return (b);
@@ -142,14 +159,14 @@ namespace _101
         }
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            _11.Text = Convert.ToString(0);
-            _12.Text = Convert.ToString(0);
-            _21.Text = Convert.ToString(0);
-            _22.Text = Convert.ToString(0);
-            _31.Text = Convert.ToString(0);
-            _32.Text = Convert.ToString(0);
-            _41.Text = Convert.ToString(0);
-            _42.Text = Convert.ToString(0);
+            _11.Text = "0";
+            _12.Text = "0";
+            _21.Text = "0";
+            _22.Text = "0";
+            _31.Text = "0";
+            _32.Text = "0";
+            _41.Text = "0";
+            _42.Text = "0";
         }
         private void button_Click_1(object sender, RoutedEventArgs e)
         {
